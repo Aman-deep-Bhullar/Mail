@@ -1,0 +1,278 @@
+{% extends "mail/layout.html" %}
+{% load static %}
+
+{% block body %}
+    <h2>{{ request.user.email }}</h2>
+
+    <button class="btn btn-sm btn-outline-primary"  data-section="inbox" id="inbox">Inbox</button>
+    <button class="btn btn-sm btn-outline-primary" id="compose"  data-section="compose">Compose</button>
+    <button class="btn btn-sm btn-outline-primary"  data-section="sent" id="sent">Sent</button>
+    <button class="btn btn-sm btn-outline-primary" data-section="archive" id="archived">Archived</button>
+    <a class="btn btn-sm btn-outline-primary" href="{% url 'logout' %}">Log Out</a>
+    <hr>
+
+    <div id="emails-view">
+    </div>
+
+    <div id="compose-view">
+        <h3>New Email</h3>
+        <form id="compose-form">
+            <div class="form-group">
+                From: <input disabled class="form-control" value="{{ request.user.email }}">
+            </div>
+            <div class="form-group">
+                To: <input id="compose-recipients" class="form-control">
+            </div>
+            <div class="form-group">
+                <input class="form-control" id="compose-subject" placeholder="Subject">
+            </div>
+            <textarea class="form-control" id="compose-body" placeholder="Body"></textarea>
+            <input type="button"  id="button" class="btn btn-primary" value="Compose">
+        </form>
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script src="{% static 'mail/inbox.js' %}"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+      document.querySelector('#button').onclick = () =>  {
+
+      fetch('/emails', {
+      method: 'POST',
+      timeout:3000,
+      body: JSON.stringify({
+      recipients: document.querySelector('#compose-recipients').value,
+      subject: document.querySelector('#compose-subject').value,
+      body: document.querySelector('#compose-body').value
+
+      })
+      })
+
+    .then(response => response.json())
+    .then(result => {
+    // Print result
+     console.log(result);
+     document.querySelector('#emails-view').style.display = 'none';
+     document.querySelector('#compose-view').style.display = 'block';
+
+});
+
+}
+})
+  </script>
+  <script>
+
+                // Shows given section
+
+                function showSection(section) {
+                fetch(`/emails/${section}`)
+               .then(response => response.json())
+
+               .then(emails => {
+                console.log(emails);
+                emails.forEach(addemails);
+                });
+                };
+
+
+
+
+
+
+
+
+
+
+
+
+           function addemails(contents){
+
+           const row = document.createElement('div');
+           row.setAttribute("class", "row");
+           row.setAttribute("onclick", "showmail(" + contents.id+")");
+           row.setAttribute("id", "myrow" +contents.id);
+           document.querySelector('#emails-view').append(row);
+
+           if(contents.read==true){
+           document.getElementById("myrow" +contents.id).className += " background"
+
+}
+
+
+           const sender = document.createElement('div');
+           sender.setAttribute("class", "col-sm-3");
+           sender.innerHTML = contents.timestamp ;
+           document.querySelector('#myrow'+contents.id).append(sender);
+
+           const subject = document.createElement('div');
+           subject.setAttribute("class", "col-sm-4");
+           subject.innerHTML = contents.subject;
+           document.querySelector('#myrow'+contents.id).append(subject);
+
+           const recipients = document.createElement('div');
+           recipients.setAttribute("class", "col-sm-4");
+           recipients.innerHTML = contents.recipients;
+           document.querySelector('#myrow'+contents.id).append(recipients);
+
+
+            }
+             document.addEventListener('DOMContentLoaded', function() {
+             // Add button functionality
+             document.querySelectorAll('button').forEach(button => {
+             button.onclick = function() {
+             showSection(this.dataset.section);
+                    };
+                });
+            });
+
+             let count =0;
+             function showmail(id) {
+             document.getElementById("emails-view").innerHTML="";
+
+             count ++;
+             fetch(`/emails/${id}`)
+             .then(response => response.json())
+             .then(email => {
+             //console.log(email);
+
+
+             const show = document.createElement("div");
+
+             show.setAttribute("class", "col-sm-3");
+
+
+             show.innerHTML = `<div class="container-fluid">
+             Sender: ${email.sender}
+             Recipients: ${email.recipients}
+             Subject: ${email.subject}
+             Time: ${email.timestamp}
+             <br>${email.body}
+
+             </div>`;
+
+             document.querySelector("#emails-view").append(show);
+
+
+
+
+             const archive =document.createElement("btn");
+
+             archive.setAttribute("class", "btn btn-primary");
+             archive.setAttribute("onclick", "makearchive("+email.id+")");
+             archive.setAttribute("id", "arch");
+             archive.innerText=`Archive`;
+
+
+
+
+
+
+
+
+             document.querySelector("#emails-view").append(archive);
+
+             const rep = document.createElement("btn");
+             rep.className = `btn btn-outline-info m-2`;
+             rep.textContent = "Reply";
+             rep.addEventListener("click", () => {
+             reply(email.sender,email.recipients,email.body,email.subject,email.timestamp);
+      });
+
+
+             document.querySelector("#emails-view").append(rep);
+
+ });
+}
+         function reply(sender,recipients,body,subject,timestamp){
+         compose_email();
+         document.querySelector("#compose-recipients").value = sender;
+         document.querySelector("#compose-body").value =`${timestamp} ${sender} wrote:\n${body}\n`;
+         if (!subject.search("Re:"))
+         {
+          document.querySelector('#compose-subject').value = subject;
+        }
+        else {
+          document.querySelector('#compose-subject').value = `Re: ${subject}`;
+        }
+
+
+
+}
+
+
+
+
+
+
+
+      function makeread(id) {
+       fetch(`/emails/${id}`, {
+       method: "PUT",
+       body: JSON.stringify({
+       read: true,
+    }),
+  });
+}
+     function makearchive(id){
+     console.log("aman");
+     archive=document.querySelector("#arch");
+     if (archive.innerText=="Archive") {
+
+               archive.innerText = "Unarchive";
+               }
+               else {
+               archive.innerText = "Archive";
+               }
+     fetch(`/emails/${id}`, {
+     method: 'PUT',
+     body: JSON.stringify({
+     archived:true
+  })
+})
+
+}
+  </script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
